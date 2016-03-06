@@ -1,7 +1,9 @@
 #!/usr/bin/python
 # coding=utf-8
 
+#from __future__ import print_function
 import os, pygame, time, random, uuid
+import AI as ai
 
 class Timer(object):
 	def __init__(self):
@@ -61,7 +63,7 @@ class Castle():
 		# start w/ undamaged and shiny castle
 		self.rebuild()
 
-	def draw(self):
+	def draw(self): #draw castle
 		""" Draw castle """
 		global screen
 
@@ -72,7 +74,7 @@ class Castle():
 				self.state = self.STATE_DESTROYED
 				del self.explosion
 			else:
-				self.explosion.draw()
+				self.explosion.draw() # castle explosion
 
 	def rebuild(self):
 		""" Reset castle """
@@ -129,7 +131,7 @@ class Bonus():
 
 		self.image = sprites.subsurface(16*2*self.bonus, 32*2, 16*2, 15*2)
 
-	def draw(self):
+	def draw(self): # draw bonus
 		""" draw bonus """
 		global screen
 		if self.visible:
@@ -188,13 +190,13 @@ class Bullet():
 
 		self.state = self.STATE_ACTIVE
 
-	def draw(self):
+	def draw(self): # draw bullet
 		""" draw bullet """
 		global screen
 		if self.state == self.STATE_ACTIVE:
 			screen.blit(self.image, self.rect.topleft)
 		elif self.state == self.STATE_EXPLODING:
-			self.explosion.draw()
+			self.explosion.draw() # bullet explosion
 
 	def update(self):
 		global castle, players, enemies, bullets
@@ -303,7 +305,7 @@ class Label():
 		if duration != None:
 			gtimer.add(duration, lambda :self.destroy(), 1)
 
-	def draw(self):
+	def draw(self): # draw label
 		""" draw label """
 		global screen
 		screen.blit(self.font.render(self.text, False, (200,200,200)), [self.position[0]+4, self.position[1]+8])
@@ -338,7 +340,7 @@ class Explosion():
 
 		gtimer.add(interval, lambda :self.update(), len(self.images) + 1)
 
-	def draw(self):
+	def draw(self): # draw explosion effect
 		global screen
 		""" draw current explosion frame """
 		screen.blit(self.image, self.position)
@@ -467,7 +469,7 @@ class Level():
 		return True
 
 
-	def draw(self, tiles = None):
+	def draw(self, tiles = None): # draw level map , Level class
 		""" Draw specified map on top of existing surface """
 
 		global screen
@@ -645,7 +647,7 @@ class Tank():
 			self.shield_image = self.shield_images[self.shield_index]
 
 
-	def draw(self):
+	def draw(self): # draw tank
 		""" draw tank """
 		global screen
 		if self.state == self.STATE_ALIVE:
@@ -653,7 +655,7 @@ class Tank():
 			if self.shielded:
 				screen.blit(self.shield_image, [self.rect.left-3, self.rect.top-3])
 		elif self.state == self.STATE_EXPLODING:
-			self.explosion.draw()
+			self.explosion.draw() # tank explosion
 		elif self.state == self.STATE_SPAWNING:
 			screen.blit(self.spawn_image, self.rect.topleft)
 
@@ -961,6 +963,7 @@ class Enemy(Tank):
 			return
 
 		if self.path == []:
+			print('path empty')
 			self.path = self.generatePath(None, True)
 
 		new_position = self.path.pop(0)
@@ -1009,6 +1012,8 @@ class Enemy(Tank):
 			if new_rect.colliderect(bonus.rect):
 				bonuses.remove(bonus)
 
+		ai.print_Enemy_Path(enemies)
+
 		# if no collision, move enemy
 		self.rect.topleft = new_rect.topleft
 
@@ -1021,6 +1026,10 @@ class Enemy(Tank):
 	def generatePath(self, direction = None, fix_direction = False):
 		""" If direction is specified, try continue that way, otherwise choose at random
 		"""
+
+		if ai.TEST_AI is True:
+			ai_path = ai.generate_Path_Enemy()
+			print(ai_path[0])
 
 		all_directions = [self.DIR_UP, self.DIR_RIGHT, self.DIR_DOWN, self.DIR_LEFT]
 
@@ -1102,6 +1111,7 @@ class Enemy(Tank):
 
 		pixels = self.nearest(random.randint(1, 12) * 32, 32) + axis_fix + 3
 
+		print("pixels = " , pixels)
 		if new_direction == self.DIR_UP:
 			for px in range(0, pixels, self.speed):
 				positions.append([x, y-px])
@@ -1115,9 +1125,7 @@ class Enemy(Tank):
 			for px in range(0, pixels, self.speed):
 				positions.append([x-px, y])
 
-		return positions
-
-
+ 		return positions
 
 class Player(Tank):
 
@@ -1251,10 +1259,10 @@ class Game():
 
 		pygame.init()
 
-
 		pygame.display.set_caption("Battle City")
 
-		size = width, height = 480, 416
+		size = width, height = 960, 416
+		#size = width, height = 480, 416
 		screen = pygame.display.set_mode(size)
 		self.clock = pygame.time.Clock()
 
@@ -1273,7 +1281,8 @@ class Game():
 			sounds["start"] = pygame.mixer.Sound("sounds/gamestart.ogg")
 			sounds["end"] = pygame.mixer.Sound("sounds/gameover.ogg")
 			sounds["score"] = pygame.mixer.Sound("sounds/score.ogg")
-			sounds["bg"] = pygame.mixer.Sound("sounds/background.ogg")
+			#sounds["bg"] = pygame.mixer.Sound("sounds/background.ogg")
+			#sounds["bg"] = pygame.mixer.Sound("sounds/background.ogg")
 			sounds["fire"] = pygame.mixer.Sound("sounds/fire.ogg")
 			sounds["bonus"] = pygame.mixer.Sound("sounds/bonus.ogg")
 			sounds["explosion"] = pygame.mixer.Sound("sounds/explosion.ogg")
@@ -1366,7 +1375,7 @@ class Game():
 		"""
 
 		global enemies
-
+		print("enemies = ", len(enemies))
 		if len(enemies) >= self.level.max_active_enemies:
 			return
 		if len(self.level.enemies_left) < 1 or self.timefreeze:
@@ -1415,7 +1424,7 @@ class Game():
 
 		self.writeInBricks("game", [125, 140])
 		self.writeInBricks("over", [125, 220])
-		pygame.display.flip()
+		pygame.display.flip()# update screen for game over
 
 		while 1:
 			time_passed = self.clock.tick(50)
@@ -1426,6 +1435,25 @@ class Game():
 					if event.key == pygame.K_RETURN:
 						self.showMenu()
 						return
+
+	def test_start(self):
+		'''zmy: start level 1 directly.'''
+
+		global players, screen
+
+		# stop game main loop (if any)
+		self.running = False
+
+		# clear all timers
+		del gtimer.timers[:]
+
+		# set current stage to 0
+		self.stage = 0
+
+		self.nr_of_players = 1
+
+		del players[:]
+		self.nextLevel()
 
 	def showMenu(self):
 		""" Show game menu
@@ -1572,7 +1600,7 @@ class Game():
 		# total underline
 		pygame.draw.line(screen, white, [170, 330], [307, 330], 4)
 
-		pygame.display.flip()
+		pygame.display.flip()# update for show score
 
 		self.clock.tick(2)
 
@@ -1596,7 +1624,7 @@ class Game():
 				screen.blit(self.font.render(str((n-1) * (i+1) * 100).rjust(4)+" PTS", False, black), [25, 168+(i*45)])
 				# print new total points per enemy
 				screen.blit(self.font.render(str(n * (i+1) * 100).rjust(4)+" PTS", False, white), [25, 168+(i*45)])
-				pygame.display.flip()
+				pygame.display.flip()# update screen for show score
 				self.clock.tick(interval)
 
 			if self.nr_of_players == 2:
@@ -1613,7 +1641,7 @@ class Game():
 					screen.blit(self.font.render(str((n-1) * (i+1) * 100).rjust(4)+" PTS", False, black), [325, 168+(i*45)])
 					screen.blit(self.font.render(str(n * (i+1) * 100).rjust(4)+" PTS", False, white), [325, 168+(i*45)])
 
-					pygame.display.flip()
+					pygame.display.flip()# update screen for show score
 					self.clock.tick(interval)
 
 			self.clock.tick(interval)
@@ -1625,7 +1653,7 @@ class Game():
 			tanks = sum([i for i in players[1].trophies.values()]) - players[1].trophies["bonus"]
 			screen.blit(self.font.render(str(tanks).rjust(2), False, white), [277, 335])
 
-		pygame.display.flip()
+		pygame.display.flip()# update screen for show score
 
 		# do nothing for 2 seconds
 		self.clock.tick(1)
@@ -1637,7 +1665,7 @@ class Game():
 			self.nextLevel()
 
 
-	def draw(self):
+	def draw(self):# update everythin on the screen during game playing
 		global screen, castle, players, enemies, bullets, bonuses
 
 		screen.fill([0, 0, 0])
@@ -1661,6 +1689,9 @@ class Game():
 		for bonus in bonuses:
 			bonus.draw()
 
+		if ai.TEST_AI is True:
+			ai.drawAstarSearch()
+
 		self.level.draw([self.level.TILE_GRASS])
 
 		if self.game_over:
@@ -1670,7 +1701,7 @@ class Game():
 
 		self.drawSidebar()
 
-		pygame.display.flip()
+		pygame.display.flip()# update screen during game playing
 
 	def drawSidebar(self):
 
@@ -1679,7 +1710,8 @@ class Game():
 		x = 416
 		y = 0
 		screen.fill([100, 100, 100], pygame.Rect([416, 0], [64, 416]))
-
+		#screen.fill([0, 255, 255], pygame.Rect([496, 0], [416, 416]))
+		ai.update(screen)
 		xpos = x + 16
 		ypos = y + 16
 
@@ -1741,7 +1773,7 @@ class Game():
 		self.writeInBricks("city", [129, 160])
 
 		if put_on_surface:
-			pygame.display.flip()
+			pygame.display.flip() ## update screen for start
 
 	def animateIntroScreen(self):
 		""" Slide intro (menu) screen from bottom to top
@@ -1766,11 +1798,11 @@ class Game():
 						break
 
 			screen.blit(screen_cp, [0, y])
-			pygame.display.flip()
+			pygame.display.flip() # update screen for start
 			y -= 5
 
 		screen.blit(screen_cp, [0, 0])
-		pygame.display.flip()
+		pygame.display.flip()# update screen for start
 
 
 	def chunks(self, l, n):
@@ -1894,8 +1926,12 @@ class Game():
 
 		global play_sounds, sounds
 
+
+		#zmy remove background sound
+		'''
 		if play_sounds:
 			sounds["bg"].stop()
+		'''
 
 		self.active = False
 		gtimer.add(3000, lambda :self.showScores(), 1)
@@ -1914,13 +1950,15 @@ class Game():
 		del gtimer.timers[:]
 
 		# load level
-		self.stage += 1
+		#self.stage += 1
+		self.stage = 1
 		self.level = Level(self.stage)
 		self.timefreeze = False
 
 		# set number of enemies by types (basic, fast, power, armor) according to level
 		levels_enemies = (
-			(18,2,0,0), (14,4,0,2), (14,4,0,2), (2,5,10,3), (8,5,5,2),
+			(1,0,0,0), (14,4,0,2), (14,4,0,2), (2,5,10,3), (8,5,5,2),
+			#(18,2,0,0), (14,4,0,2), (14,4,0,2), (2,5,10,3), (8,5,5,2),
 			(9,2,7,2), (7,4,6,3), (7,4,7,2), (6,4,7,3), (12,2,4,2),
 			(5,5,4,6), (0,6,8,6), (0,8,8,4), (0,4,10,6), (0,2,10,8),
 			(16,2,0,2), (8,2,8,2), (2,8,6,4), (4,4,4,8), (2,8,2,8),
@@ -1954,11 +1992,22 @@ class Game():
 		# if False, players won't be able to do anything
 		self.active = True
 
-		self.draw()
+		self.draw() # draw update everything on the screen before loop
 
+		time_elapse = 0
 		while self.running:
 
-			time_passed = self.clock.tick(50)
+			time_passed = self.clock.tick(500)
+
+			'''zmy test'''
+			pressdown_up = pygame.event.Event(pygame.KEYDOWN,scancode= 111, key=pygame.K_UP, unicode=u'', mod = 0)
+			pressup_up = pygame.event.Event(pygame.KEYUP,scancode= 111, key=pygame.K_UP, unicode=u'', mod = 0)
+			time_elapse += time_passed
+			evt = ai.test_nextmove(time_elapse)
+			if evt is not None:
+				pygame.event.post(evt)
+			'''zmy test'''
+
 
 			for event in pygame.event.get():
 				if event.type == pygame.MOUSEBUTTONDOWN:
@@ -1966,7 +2015,7 @@ class Game():
 				elif event.type == pygame.QUIT:
 					quit()
 				elif event.type == pygame.KEYDOWN and not self.game_over and self.active:
-
+					#print(event)
 					# toggle sounds
 					if event.key == pygame.K_m:
 						play_sounds = not play_sounds
@@ -1995,6 +2044,7 @@ class Game():
 								elif index == 4:
 									player.pressed[3] = True
 				elif event.type == pygame.KEYUP and not self.game_over and self.active:
+					#print(event)
 					for player in players:
 						if player.state == player.STATE_ALIVE:
 							try:
@@ -2063,18 +2113,27 @@ class Game():
 				if not castle.active:
 					self.gameOver()
 
+
 			gtimer.update(time_passed)
 
-			self.draw()
+			self.draw()# call draw update everything on the screen
+
+
+
+	#return enemies
+
+
+
+enemies = []
+screen = None
 
 if __name__ == "__main__":
 
 	gtimer = Timer()
 
 	sprites = None
-	screen = None
+
 	players = []
-	enemies = []
 	bullets = []
 	bonuses = []
 	labels = []
@@ -2084,4 +2143,7 @@ if __name__ == "__main__":
 
 	game = Game()
 	castle = Castle()
-	game.showMenu()
+	if ai.TEST_AI is True:
+		game.test_start()
+	else:
+		game.showMenu()
