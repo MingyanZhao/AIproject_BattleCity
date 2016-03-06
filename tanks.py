@@ -490,6 +490,12 @@ class Level():
 				elif tile[0] == self.TILE_GRASS:
 					screen.blit(self.tile_grass, tile[1].topleft)
 
+				if ai.TEST_AI is True:
+					topleft_forAI = [tile[1].topleft[0] + 480, tile[1].topleft[1]]
+					ai.update_map_forai(screen,topleft_forAI)
+					#screen.fill((1,1,1), pygame.Rect((topleft_forAI),(8*2, 8*2)))
+
+
 	def updateObstacleRects(self):
 		""" Set self.obstacle_rects to all tiles' rects that players can destroy
 		with bullets """
@@ -1012,7 +1018,7 @@ class Enemy(Tank):
 			if new_rect.colliderect(bonus.rect):
 				bonuses.remove(bonus)
 
-		ai.print_Enemy_Path(enemies)
+		ai.print_Enemy_Path(screen,enemies)
 
 		# if no collision, move enemy
 		self.rect.topleft = new_rect.topleft
@@ -1261,8 +1267,12 @@ class Game():
 
 		pygame.display.set_caption("Battle City")
 
-		size = width, height = 960, 416
-		#size = width, height = 480, 416
+
+		if ai.TEST_AI is True:
+			size = width, height = 896, 416
+		else:
+			size = width, height = 480, 416
+
 		screen = pygame.display.set_mode(size)
 		self.clock = pygame.time.Clock()
 
@@ -1689,8 +1699,8 @@ class Game():
 		for bonus in bonuses:
 			bonus.draw()
 
-		if ai.TEST_AI is True:
-			ai.drawAstarSearch()
+		if ai.TEST_AI is True and len(enemies) is not 0:
+			ai.drawAstarSearch(screen,enemies)
 
 		self.level.draw([self.level.TILE_GRASS])
 
@@ -1711,7 +1721,7 @@ class Game():
 		y = 0
 		screen.fill([100, 100, 100], pygame.Rect([416, 0], [64, 416]))
 		#screen.fill([0, 255, 255], pygame.Rect([496, 0], [416, 416]))
-		ai.update(screen)
+		#ai.update_map_forai(screen)
 		xpos = x + 16
 		ypos = y + 16
 
@@ -1997,7 +2007,7 @@ class Game():
 		time_elapse = 0
 		while self.running:
 
-			time_passed = self.clock.tick(500)
+			time_passed = self.clock.tick(50)
 
 			'''zmy test'''
 			pressdown_up = pygame.event.Event(pygame.KEYDOWN,scancode= 111, key=pygame.K_UP, unicode=u'', mod = 0)
@@ -2138,7 +2148,9 @@ if __name__ == "__main__":
 	bonuses = []
 	labels = []
 
-	play_sounds = True
+	#play_sounds = True
+	play_sounds = False
+
 	sounds = {}
 
 	game = Game()
