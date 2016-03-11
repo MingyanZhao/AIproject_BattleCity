@@ -2,9 +2,72 @@
 # coding=utf-8
 
 #from __future__ import print_function
-import os, pygame, time, random, uuid
+import os, pygame, time, random, uuid,sys
 import AI as ai
+from copy import deepcopy
+#from MyPriorityQueue import MyPriorityQueue
+#import Node
 
+'''
+create node for each state
+'''
+class Node:
+    def __init__(self,g,parentNode,position):
+        self._g=g
+        self._f=g
+        self._parentNode=parentNode
+        self._position=position #coordinates of position is in the range(26)
+        
+        
+    def setG(self,g):
+        self._g=g
+        
+    def getG(self):
+        return self._g
+    
+    def setParentNode(self,parent):
+        self._parentNode=parent
+         
+    def getParentNode(self):
+        return self._parentNode
+
+    def setF(self,f):
+        self._f=f
+    
+    def getF(self):
+        return self._f
+    
+    def setPosition(self,position):
+        self._position=position
+    
+    def getPosition(self):
+        return self._position
+
+   
+'''
+Created on Mar 10, 2016
+
+@author: Kun
+'''
+import heapq
+
+class MyPriorityQueue(object):
+    def __init__(self):
+        self.heap = []
+
+    def add(self, d, pri):
+        heapq.heappush(self.heap, (pri, d))
+
+    def get(self):
+        pri, d = heapq.heappop(self.heap)
+        return d
+    
+    def isEmpty(self):
+        return len(self.heap)==0     
+        
+        
+        
+        
 class Timer(object):
 	def __init__(self):
 		self.timers = []
@@ -411,21 +474,29 @@ class Level():
 			@return True if bullet was stopped, False otherwise
 		"""
 
-		global play_sounds, sounds
-
+		global play_sounds, sounds, astar_map
+		print(len(self.mapr))
 		for tile in self.mapr:
 			if tile[1].topleft == pos:
 				if tile[0] == self.TILE_BRICK:
 					if play_sounds and sound:
 						sounds["brick"].play()
 					self.mapr.remove(tile)
+					astar_map[int(round(pos[1]/16))][int(round(pos[0]/16))]=1
 					self.updateObstacleRects()
+					
+					for i in range(26):
+						for j in range(26):
+							sys.stdout.write('%d'%astar_map[i][j])
+						print
+						
 					return True
 				elif tile[0] == self.TILE_STEEL:
 					if play_sounds and sound:
 						sounds["steel"].play()
 					if power == 2:
 						self.mapr.remove(tile)
+						astar_map[round(pos[1]/16)][round(pos[0]/16)]=1
 						self.updateObstacleRects()
 					return True
 				else:
@@ -450,15 +521,22 @@ class Level():
 		f = open(filename, "r")
 		data = f.read().split("\n")
 		self.mapr = []
+		global astar_map
+		
 		x, y = 0, 0
 		for row in data:
 			for ch in row:
-				if ch == "#":
+				if ch == ".":
+					astar_map[y/16][x/16]=1
+				elif ch == "#":
 					self.mapr.append((self.TILE_BRICK, pygame.Rect(x, y, self.TILE_SIZE, self.TILE_SIZE)))
+					astar_map[y/16][x/16]=9
 				elif ch == "@":
 					self.mapr.append((self.TILE_STEEL, pygame.Rect(x, y, self.TILE_SIZE, self.TILE_SIZE)))
+					astar_map[y/16][x/16]=0
 				elif ch == "~":
 					self.mapr.append((self.TILE_WATER, pygame.Rect(x, y, self.TILE_SIZE, self.TILE_SIZE)))
+					astar_map[y/16][x/16]=0
 				elif ch == "%":
 					self.mapr.append((self.TILE_GRASS, pygame.Rect(x, y, self.TILE_SIZE, self.TILE_SIZE)))
 				elif ch == "-":
@@ -466,6 +544,8 @@ class Level():
 				x += self.TILE_SIZE
 			x = 0
 			y += self.TILE_SIZE
+
+			
 		return True
 
 
@@ -475,7 +555,7 @@ class Level():
 		global screen
 
 		if tiles == None:
-			tiles = [TILE_BRICK, TILE_STEEL, TILE_WATER, TILE_GRASS, TILE_FROZE]
+			tiles = [self.TILE_BRICK, self.TILE_STEEL, self.TILE_WATER, self.TILE_GRASS, self.TILE_FROZE]
 
 		for tile in self.mapr:
 			if tile[0] in tiles:
@@ -814,7 +894,9 @@ class Enemy(Tank):
 		Tank.__init__(self, level, type, position = None, direction = None, filename = None)
 
 		global enemies, sprites
-
+		
+		self.visited_map=[[0 for x in range(26)] for x in range(26)]
+		
 		# if true, do not fire
 		self.bullet_queued = False
 
@@ -878,8 +960,7 @@ class Enemy(Tank):
 			self.rect.topleft = self.getFreeSpawningPosition()
 			if not self.rect.topleft:
 				self.state = self.STATE_DEAD
-				return
-
+				return	
 		# list of map coords where tank should go next
 		self.path = self.generatePath(self.direction)
 
@@ -1029,13 +1110,13 @@ class Enemy(Tank):
 		if self.state == self.STATE_ALIVE and not self.paused:
 			self.move()
 
-	def generatePath(self, direction = None, fix_direction = False):
+	def generate_Path(self, direction = None, fix_direction = False):
 		""" If direction is specified, try continue that way, otherwise choose at random
 		"""
 
-		if ai.TEST_AI is True:
-			ai_path = ai.generate_Path_Enemy()
-			print(ai_path[0])
+# 		if ai.TEST_AI is True:
+# 			ai_path = ai.generate_Path_Enemy()
+# 			print(ai_path[0])
 
 		all_directions = [self.DIR_UP, self.DIR_RIGHT, self.DIR_DOWN, self.DIR_LEFT]
 
@@ -1046,6 +1127,7 @@ class Enemy(Tank):
 				opposite_direction = self.direction - 2
 			directions = all_directions
 			random.shuffle(directions)
+			
 			directions.remove(opposite_direction)
 			directions.append(opposite_direction)
 		else:
@@ -1054,10 +1136,6 @@ class Enemy(Tank):
 			else:
 				opposite_direction = direction - 2
 
-			if direction in [self.DIR_UP, self.DIR_RIGHT]:
-				opposite_direction = direction + 2
-			else:
-				opposite_direction = direction - 2
 			directions = all_directions
 			random.shuffle(directions)
 			directions.remove(opposite_direction)
@@ -1114,10 +1192,9 @@ class Enemy(Tank):
 		else:
 			axis_fix = self.nearest(x, 16) - x
 		axis_fix = 0
-
 		pixels = self.nearest(random.randint(1, 12) * 32, 32) + axis_fix + 3
-
-		print("pixels = " , pixels)
+		print(self.speed)
+		pixels=10
 		if new_direction == self.DIR_UP:
 			for px in range(0, pixels, self.speed):
 				positions.append([x, y-px])
@@ -1130,8 +1207,118 @@ class Enemy(Tank):
 		elif new_direction == self.DIR_LEFT:
 			for px in range(0, pixels, self.speed):
 				positions.append([x-px, y])
-
+				
  		return positions
+ 	
+ 	'''
+ 	by Kun Huang
+ 	'''
+	def generatePath(self,direction = None, fix_direction = False):
+		pq=MyPriorityQueue()
+		duration=7 #depth limited
+		startPosition=[int(round(self.rect.left / 16)),int(round(self.rect.top / 16))]
+		goalPosition=[12,24]
+		#return [[259, 21], [259, 22], [259, 23], [259, 24], [259, 25], [259, 26], [259, 27], [259, 28], [259, 29], [259, 30]]
+		startNode=Node(0,None,startPosition)
+		#return [[259, 21], [259, 22], [259, 23], [259, 24], [259, 25], [259, 26], [259, 27], [259, 28], [259, 29], [259, 30]]
+		pq.add(startNode,startNode.getF())
+		while(pq.isEmpty()==False):
+			currentNode=pq.get()
+			if duration==1:
+				pathNodes=self.getPathNodes(currentNode)
+				#print("PATH:",self.fromNodesToPositions(pathNodes))
+				#return [[259, 21], [259, 22], [259, 23], [259, 24], [259, 25], [259, 26], [259, 27], [259, 28], [259, 29], [259, 30]]
+				return self.fromNodesToPositions(pathNodes)
+			currentPosition=currentNode.getPosition()
+			if currentPosition[0]==goalPosition[0] and currentPosition[1]==goalPosition[1]:
+				pathNodes=self.getPathNodes(currentNode)
+				#print("PATH:",self.fromNodesToPositions(pathNodes))
+				return self.fromNodesToPositions(pathNodes)
+			expandedNodes=self.expandNode(currentNode)
+			for item in expandedNodes:
+				pq.add(item,item.getF())
+			duration=duration-1
+		return None
+	
+	def fromNodesToPositions(self,pathNodes):
+		if len(pathNodes)==0:
+			return None
+		positions=[]
+		if len(pathNodes==1):
+			nodePosition=pathNodes[0].getPosition()
+			positions.append([nodePosition[0]*16,nodePosition[1]*16])
+		for i in range(len(pathNodes)-1):
+			currentNode=pathNodes[i]
+			nextNode=pathNodes[i+1]
+			currentPosition=currentNode.getPosition()
+			nextPosition=nextNode.getPosition()
+			diffX=nextPosition[0]-currentPosition[0]
+			diffY=nextPosition[1]-currentPosition[1]
+			if diffX==0:
+				if diffY>0:
+					for num in range(diffY*16):
+						positions.append([currentPosition[0]*16,currentPosition[1]*16+1])
+				else:
+					for num in range(-diffY*16):
+						positions.append([currentPosition[0]*16,currentPosition[1]*16-1])	
+			if diffY==0:
+				if diffX>0:
+					for num in range(diffX*16):
+						positions.append([currentPosition[0]*16+1,currentPosition[1]*16])
+				else:
+					for num in range(-diffX*16):
+						positions.append([currentPosition[0]*16-1,currentPosition[1]*16])	
+			return positions			
+
+	
+	def getPathNodes(self,node):
+		pathNodes=[]
+		current=node
+		while(current!=None):
+			pathNodes.insert(0,current)
+			current=current.getParentNode()
+		return pathNodes
+	
+	def manhattanDistance(self,node,goalPosition):
+		''' get manhattan distance'''
+		goalX=goalPosition[0]
+		goalY=goalPosition[1]
+		currentPosition=node.getPosition()
+		return abs(currentPosition[0]-goalX)+abs(currentPosition[1]-goalY)
+
+	def cost(self,node):
+
+		if node==None or node.getParentNode()==None:
+			parentCost=0
+		else:
+			parentCost=node.getParentNode().getG()
+		parentPosition=node.getParentNode.getPosition() # parent's position
+		self.visited_map[parentPosition[1]][parentPosition[0]]=99 #set value of the visited position to be 99. 
+		position=node.getPosition() #current position
+		return astar_map[position[1]][position[0]] + parentCost + self.visited_map[position[1]][position[0]]
+
+    def expandNode(self,nodeToBeExpand):
+        expandedNodes=[]
+        directions=[self.DIR_UP, self.DIR_RIGHT, self.DIR_DOWN, self.DIR_LEFT]
+        goalPosition=[12,24]
+        newPosition=None
+        for direction in directions:
+            childNode=deepcopy(nodeToBeExpand)
+            childNode.setParentNode(nodeToBeExpand)
+            currPosition=childNode.getPosition()
+            if direction==self.DIR_UP and currPosition[1]>1:
+                newPosition=[currPosition[0],currPosition[1]-1]
+            elif direction==self.DIR_RIGHT and currPosition[0]<24:
+                newPosition=[currPosition[0]+1,currPosition[1]]
+            elif direction==self.DIR_DOWN and currPosition[1]<24:
+                newPosition=[currPosition[0],currPosition[1]+1]    
+            elif direction==self.DIR_LEFT and currPosition[0]>1:
+                newPosition=[currPosition[0]-1,currPosition[1]]
+            childNode.setPosition(newPosition)
+            childNode.setG(self.cost(childNode))
+            childNode.setF(childNode.getG()+self.manhattanDistance(childNode,goalPosition))
+            expandedNodes.append(childNode)
+        return expandedNodes    
 
 class Player(Tank):
 
@@ -1145,6 +1332,8 @@ class Player(Tank):
 			filename = (0, 0, 16*2, 16*2)
 
 		self.start_position = position
+		self.mapPositionOfPlayer = [position[0]/16,position[1]/16]
+		#print(self.start_position)
 		self.start_direction = direction
 
 		self.lives = 3
@@ -1173,7 +1362,7 @@ class Player(Tank):
 			self.rotate(direction, False)
 
 	def move(self, direction):
-		""" move player if possible """
+		""" move player if possible, """
 
 		global players, enemies, bonuses
 
@@ -1233,6 +1422,8 @@ class Player(Tank):
 
 		#if no collision, move player
 		self.rect.topleft = (new_position[0], new_position[1])
+		self.mapPositionOfPlayer=[int(round(new_position[0]/16)),int(round(new_position[1]/16))]
+		#print("***",self.mapPositionOfPlayer)
 
 	def reset(self):
 		""" reset player """
@@ -2152,7 +2343,9 @@ if __name__ == "__main__":
 	play_sounds = False
 
 	sounds = {}
-
+	
+	astar_map=[[0 for x in range(26)] for x in range(26)]
+	
 	game = Game()
 	castle = Castle()
 	if ai.TEST_AI is True:
