@@ -15,25 +15,27 @@ def generate_Path_Enemy():
 
 
 def print_Enemy_Path(screen, enemies):
-    for position in enemies[0].path:
-        p = [position[0] + 480, position[1] + 13]
-        print(p)
-        screen.fill([0, 0, 255], pygame.Rect(p , [36, 36]))
+    for enemie in enemies:
+        for position in enemie.path:
+            p = [position[0] + 493, position[1] + 13]
+            screen.fill([0, 0, 255], pygame.Rect(p , [26, 26]))
     return
 
 def drawAstarSearch(screen, enemies):
     #print(enemies[0].direction)
-    for position in enemies[0].path:
-        if enemies[0].direction in [DIR_UP, DIR_DOWN]:
-            p = [position[0] + 480 + 8, position[1]]
-        else:
-            p = [position[0] + 480, position[1] + 13]
-        screen.fill([0, 0, 255], pygame.Rect(p , [5, 5]))
+    index = 0
+    for enemie in enemies:
+        color3 = 50 + 50 * (index % 4)
+        color2 = 100 + 50 * (index % 3)
+        color1 = 23 * (index % 4)
+        for position in enemie.path:
+            p = [position[0] + 480, position[1]]
+            screen.fill([color3, color2, color1], pygame.Rect(p , [26, 26]))
+        index += 1
     return
 
-def update_map_forai(screen,topleft):
-    #pygame.Rect(random.randint(480, 960-32), random.randint(0, 416-32), 32, 32)
-    #from tanks import screen
+def generate_map_forai(screen, topleft):
+
     screen.fill([0, 255, 255], pygame.Rect(topleft, [16, 16]))
     return
 
@@ -62,9 +64,6 @@ def ai_release(key):
     elif key is 4:# move left
         return pygame.event.Event(pygame.KEYUP,scancode= 113, key=pygame.K_LEFT, mod = 0)
 
-
-
-
 pressed = False
 
 def test_nextmove(time_elapse):
@@ -79,3 +78,36 @@ def test_nextmove(time_elapse):
         return ai_release(1)
     else:
         return None
+
+def update_astarMap(astar_map, player_position = None, recover = True):
+    x = int(round(player_position[1] / 16))
+    y = int(round(player_position[0] / 16))
+
+    if recover == True:
+        score_player = 1
+    else:
+        score_player = 99
+
+    astar_map[x][y] = score_player
+    if x < 25:
+        astar_map[x + 1][y] = score_player
+    if y < 25:
+        astar_map[x][y + 1] = score_player
+    if x < 25 and y < 25:
+        astar_map[x + 1][y + 1] = score_player
+
+
+def update_costmap(astar_map, costmap):
+
+    for i in range(25):
+        for j in range(25):
+            if(astar_map[i][j] == 9
+               or astar_map[i+ 1][j] == 9
+               or astar_map[i][j + 1] == 9
+               or astar_map[i + 1][j + 1] == 9):
+                costmap[i][j] = 9
+                costmap[i + 1][j] = 9
+                costmap[i][j + 1] = 9
+                costmap[i + 1][j + 1] = 9
+    print(costmap)
+    return costmap
